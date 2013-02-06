@@ -57,91 +57,100 @@ int main (int argc, char ** argv)
             );
 
     k = 0;
-    while (1)
-    {
-        unlink (temp_string);  // clean up old stuff
 
-        f = open (temp_string
+
+    unlink (temp_string);  // clean up old stuff
+
+    struct timeval t1;
+    gettimeofday (&t1, NULL);
+
+{
+    f = open (temp_string
                  ,O_RDONLY | O_CREAT | O_LOV_DELAY_CREATE
                  ,perm
                  );
 
-        struct lov_user_md lum;
-        lum.lmm_magic = LOV_USER_MAGIC;
-        lum.lmm_pattern = 0;
-        lum.lmm_stripe_size = 0;
-        lum.lmm_stripe_count = 1;
-        lum.lmm_stripe_offset = 0;
-        ioctl (f, LL_IOC_LOV_SETSTRIPE
+    struct lov_user_md lum;
+    lum.lmm_magic = LOV_USER_MAGIC;
+    lum.lmm_pattern = 0;
+    lum.lmm_stripe_size = 0;
+    lum.lmm_stripe_count = 1;
+    lum.lmm_stripe_offset = 0;
+    ioctl (f, LL_IOC_LOV_SETSTRIPE
               ,(void *) &lum
               );
-        close (f);
+    close (f);
 
-        hid_t fid = H5Fopen (temp_string, H5F_ACC_RDWR, H5P_DEFAULT);
+    hid_t fid = H5Fopen (temp_string, H5F_ACC_RDWR, H5P_DEFAULT);
 
+    if (fid < 0)
+    {
+        fid = H5Fcreate (temp_string, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
         if (fid < 0)
         {
-            fid = H5Fcreate (temp_string, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-            if (fid < 0)
-            {
-                fprintf (stderr, "HDF5 ERROR: "
+            fprintf (stderr, "HDF5 ERROR: "
                              "cannot open/create %s\n"
-                        ,temp_string);
-                return -1;
-            }
+                     ,temp_string);
+            return -1;
         }
-
-        hid_t h5_dataset_id;
-        hid_t h5_dataspace_id, h5_memspace_id;
-        herr_t status;
-        int rank = 2;
-        hsize_t h5_localdims[rank];
-        // 512x512 is 2M
-        int NX = 512*4;
-        int NY = 512*2;
-        h5_localdims[0] = NY;
-        h5_localdims[1] = NX;
-        double my_data[NY][NX];
-
-        for (i = 0; i < NY; i++)
-            for (j =0; j < NX; j++)
-                my_data[i][j] = i + j + rank;
-
-        h5_dataspace_id = H5Screate_simple (rank, h5_localdims, NULL);
-
-        sprintf (dataset_name, "var");
-//    h5_dataset_id = H5Dopen (fid, dataset_name);
-
-        h5_dataset_id = H5Dcreate (fid
-                                  ,dataset_name
-                                  ,H5T_NATIVE_DOUBLE
-                                  ,h5_dataspace_id
-                                  ,H5P_DEFAULT
-                                  );
-
-        status = H5Dwrite (h5_dataset_id
-                          ,H5T_NATIVE_DOUBLE
-                          ,H5S_ALL
-                          ,H5S_ALL
-                          ,H5P_DEFAULT
-                          ,&my_data[0][0]
-                          );
-
-        if (status == 0)
-        {
-//            printf ("%d th iteration is done.\n", k);
-        }
-        else
-        {
-            printf ("%d th iteration has error.\n", k);
-        }
-        k++;
-         
-        H5Dclose (h5_dataset_id);
-        H5Sclose (h5_dataspace_id);
-        H5Fclose (fid);
     }
 
+    hid_t h5_dataset_id;
+    hid_t h5_dataspace_id, h5_memspace_id;
+    herr_t status;
+    int rank = 2;
+    hsize_t h5_localdims[rank];
+    // 512x512 is 2M
+    int NX = 512*4;
+    int NY = 512*2;
+    h5_localdims[0] = NY;
+    h5_localdims[1] = NX;
+    double my_data[NY][NX];
+
+    for (i = 0; i < NY; i++)
+        for (j =0; j < NX; j++)
+            my_data[i][j] = i + j + rank;
+
+    h5_dataspace_id = H5Screate_simple (rank, h5_localdims, NULL);
+
+    sprintf (dataset_name, "var");
+//    h5_dataset_id = H5Dopen (fid, dataset_name);
+
+    h5_dataset_id = H5Dcreate (fid
+                              ,dataset_name
+                              ,H5T_NATIVE_DOUBLE
+                              ,h5_dataspace_id
+                              ,H5P_DEFAULT
+                              );
+
+    status = H5Dwrite (h5_dataset_id
+                      ,H5T_NATIVE_DOUBLE
+                      ,H5S_ALL
+                      ,H5S_ALL
+                      ,H5P_DEFAULT
+                      ,&my_data[0][0]
+                      );
+
+    if (status == 0)
+    {
+//            printf ("%d th iteration is done.\n", k);
+    }
+    else
+    {
+        printf ("%d th iteration has error.\n", k);
+    }
+    k++;
+         
+    H5Dclose (h5_dataset_id);
+    H5Sclose (h5_dataspace_id);
+    H5Fclose (fid);
+
+    struct timeval t2;
+    gettimeofday (&t2, NULL);
+
+    printf("time: %.6lf\n", t2.tv_sec + t2.tv_usec/1000000.0 - t1.tv_sec - t1.tv_usec/1000000.0);
+
+}
     MPI_Finalize ();
 
     return 0;
