@@ -43,7 +43,20 @@ int main (int argc, char ** argv)
 
     MPI_Init (&argc, &argv);
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-    
+  
+    if (argc != 2)
+    {
+       printf ("wrong parameters\n");
+       exit (-1);
+    }
+ 
+    int ngroups = atoi (argv[1]);
+    if (ngroups < 0)
+    {
+       printf ("wrong parameters\n");
+       exit (-1);
+    }
+
     old_mask = umask (0);
     umask (old_mask);
     perm = old_mask ^ 0666;
@@ -56,6 +69,7 @@ int main (int argc, char ** argv)
             ,rank
             );
 
+    int offset = rank % ngroups;
     k = 0;
     while (1)
     {
@@ -71,7 +85,7 @@ int main (int argc, char ** argv)
         lum.lmm_pattern = 0;
         lum.lmm_stripe_size = 0;
         lum.lmm_stripe_count = 1;
-        lum.lmm_stripe_offset = 0;
+        lum.lmm_stripe_offset = offset;
         ioctl (f, LL_IOC_LOV_SETSTRIPE
               ,(void *) &lum
               );
@@ -99,6 +113,8 @@ int main (int argc, char ** argv)
         // 512x512 is 2M
         int NX = 512*4;
         int NY = 512*2;
+//        int NX = 512;
+//        int NY = 512;
         h5_localdims[0] = NY;
         h5_localdims[1] = NX;
         double my_data[NY][NX];
